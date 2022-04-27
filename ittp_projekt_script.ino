@@ -1,10 +1,10 @@
 /*
- * Dieses Beispiel implementiert einen MQTT-Client mit Hilfe der PubSubClient-Library. Ergänzend zu den online verfügbaren Beispielen
- * werden hier Zugangsdaten für den MQTT-Broker verwendet. Die Beispieldaten funktionieren bei unserem Projekt (kann herausgegeben werden),
- * sofern die WLAN-Verbindung korrekt konfiguriert wurde.
- * 
- * Das Beispiel beinhaltet sowohl MQTT-Subscribe als auch MQTT-Publish.
- */
+   Dieses Beispiel implementiert einen MQTT-Client mit Hilfe der PubSubClient-Library. Ergänzend zu den online verfügbaren Beispielen
+   werden hier Zugangsdaten für den MQTT-Broker verwendet. Die Beispieldaten funktionieren bei unserem Projekt (kann herausgegeben werden),
+   sofern die WLAN-Verbindung korrekt konfiguriert wurde.
+
+   Das Beispiel beinhaltet sowohl MQTT-Subscribe als auch MQTT-Publish.
+*/
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
@@ -15,39 +15,46 @@ void callback(String topic, byte* message, unsigned int length);
 void reconnect();
 
 // WiFi-Zugangsdaten
-const char* ssid = "BS-GAST";
-const char* passphrase = "bs2020#";
+const char* ssid = "IT-R222";
+const char* passphrase = "LIFtOff!";
 
 // MQTT-Serverdaten
 const char* mqtt_server = "mqtt.devmgr.de";
 const int mqtt_port = 1883;
 const char* mqtt_user = "prototype";
 const char* mqtt_password = "liftoff";
-const char* mqtt_client_name = "ESP8266-Client-Delta";  // beliebig wählbar, muss aber pro Client einmalig sein (wegen Mosquitto)
+const char* mqtt_client_name = "ESP8266-Client";  // beliebig wählbar, muss aber pro Client einmalig sein (wegen Mosquitto)
 
+// Topics für Subscription und eigenes Publishing
 const char* topic_sub = "prototype/liftoff-temp-aussen-1";
-char  messageTemp;
-int baselineTemp = 0;
-int celsius = 0;
-int fahrenheit = 0;
+const char* topic_pub = "prototype/liftoff-temp-aussen-1";
+
+// Konstanten
+const int pub_interval = 10000;  // Intervall für eigene pub-Nachrichten (in ms)
+
 
 WiFiClient wifi;
 PubSubClient client(wifi);
+
+long now;  // current uptime
+long last = 0;  // uptime of last publish
+
+int pub_counter = 0;  // Zählwert als Inhalt für eigene Publish-Nachrichten
 
 
 /* ---------- main functions ---------- */
 
 /**
- * setup
- */
+   setup
+*/
 void setup() {
-  // Serial
+  // Seria
+  pinMode(A0, INPUT);
   Serial.begin(9600);
   Serial.println();
   delay(100);
+
   Serial.println("Setup...");
-  pinMode(A0, INPUT);
-  pinMode(2, OUTPUT);
 
   // WiFi
   setup_wifi();
@@ -61,8 +68,8 @@ void setup() {
 
 
 /**
- * loop
- */
+   loop
+*/
 void loop() {
   if (!client.connected())
   {
@@ -76,13 +83,29 @@ void loop() {
     client.connect(mqtt_client_name, mqtt_user, mqtt_password);
   }
 
-    celsius = map(((analogRead(A0) - 20) * 3.04), 0, 1023, -40, 125);
-    Serial.print(celsius);
-    Serial.print(" C, ");
-    Serial.print(messageTemp);
+  /*long last = analogRead(A0);
+  Serial.println(last);
+   non-blocking Timer für eigene Publish-Nachrichten;*/
+  now = millis();
+  if (millis() - last > pub_interval)
+  {
+
+    last = now;
+    pub_counter++;
+    client.publish(topic_pub, String(pub_counter).c_str());
+    Serial.print("Publish: ");
+    Serial.print(topic_pub);
+    Serial.print(": ");
+    Serial.println(pub_counter);
+  }
 }
 
 
+/* ---------- other functions ---------- */
+
+/**
+   setup_wifi
+*/
 void setup_wifi()
 {
   delay(10);
@@ -98,12 +121,13 @@ void setup_wifi()
 
 
 /**
- * callback
- */
+   callback
+*/
 void callback(String topic, byte* message, unsigned int length)
 {
   // Callback-Funktion für MQTT-Subscriptions
-  
+  String messageTemp;
+
   Serial.print("Message arrived on topic: ");
   Serial.println(topic);
 
@@ -112,7 +136,7 @@ void callback(String topic, byte* message, unsigned int length)
   {
     Serial.print((char)message[i]);
     messageTemp += (char)message[i];
-  }
+  };
   Serial.println();
 
   // Behandlung bestimmter Topics
@@ -134,17 +158,17 @@ void callback(String topic, byte* message, unsigned int length)
 
 
 /**
- * reconnect
- */
+   reconnect
+*/
 void reconnect()
 {
   // Wiederverbinden mit dem MQTT-Broker
   while (!client.connected())
   {
-    Serial.println("MQTT reconnect");
-    if (client.connect("ESP8266Client-delta", mqtt_user, mqtt_password))
+    //Serial.println("MQTT reconnect");
+    if (client.connect("ESP8266Client", mqtt_user, mqtt_password))
     {
-      Serial.println("connected");
+     // Serial.println("connected");
       client.subscribe(topic_sub);
     }
     else

@@ -9,6 +9,7 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
+#define Luefter1 D1
 // forward declarations
 void setup_wifi();
 void callback(String topic, byte* message, unsigned int length);
@@ -26,8 +27,10 @@ const char* mqtt_password = "liftoff";
 const char* mqtt_client_name = "ESP8266-Client";  // beliebig wählbar, muss aber pro Client einmalig sein (wegen Mosquitto)
 
 // Topics für Subscription und eigenes Publishing
-const char* topic_sub = "prototype/liftoff-temp-aussen-1";
-const char* topic_pub = "prototype/liftoff-temp-aussen-1";
+const char* topic_sub = "prototype/luefter-start-delta-kilian";
+const char* topic_pub = "prototype/teamdelte-temp";
+
+const char* startvent = "NO";
 
 // Konstanten
 const int pub_interval = 10000;  // Intervall für eigene pub-Nachrichten (in ms)
@@ -49,8 +52,10 @@ int pub_counter = 0;  // Zählwert als Inhalt für eigene Publish-Nachrichten
 */
 void setup() {
   // Seria
+  pinMode(D1, OUTPUT);
   pinMode(A0, INPUT);
   Serial.begin(9600);
+
   Serial.println();
   delay(100);
 
@@ -83,16 +88,20 @@ void loop() {
     client.connect(mqtt_client_name, mqtt_user, mqtt_password);
   }
 
-  /*long last = analogRead(A0);
-  Serial.println(last);
-   non-blocking Timer für eigene Publish-Nachrichten;*/
+  if(startvent == "YES") {
+    digitalWrite(Luefter1, HIGH);
+  }else{
+    digitalWrite(Luefter1, LOW);
+  }
+  
   now = millis();
   if (millis() - last > pub_interval)
   {
 
     last = now;
     pub_counter++;
-    client.publish(topic_pub, String(pub_counter).c_str());
+    const int temp = analogRead(A0);
+    client.publish(topic_pub, String(temp).c_str());
     Serial.print("Publish: ");
     Serial.print(topic_pub);
     Serial.print(": ");
@@ -127,6 +136,8 @@ void callback(String topic, byte* message, unsigned int length)
 {
   // Callback-Funktion für MQTT-Subscriptions
   String messageTemp;
+  String temp;
+
 
   Serial.print("Message arrived on topic: ");
   Serial.println(topic);
@@ -137,6 +148,14 @@ void callback(String topic, byte* message, unsigned int length)
     Serial.print((char)message[i]);
     messageTemp += (char)message[i];
   };
+
+   if (messageTemp == "NO"){
+     Serial.print("Lüfter nicht starten");
+     startvent = "NO";
+    }else{
+      Serial.print("Lüfter starten");
+      startvent = "YES";
+     }
   Serial.println();
 
   // Behandlung bestimmter Topics
